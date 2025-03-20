@@ -1,24 +1,125 @@
-# Compiled class file
-*.class
-
-# Log file
-*.log
-
-# BlueJ files
-*.ctxt
-
-# Mobile Tools for Java (J2ME)
-.mtj.tmp/
-
-# Package Files #
-*.jar
-*.war
-*.nar
-*.ear
-*.zip
-*.tar.gz
-*.rar
-
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
-hs_err_pid*
-replay_pid*
+// ==UserScript==
+// @name         DUO_FARMXP
+// @namespace    ´꒳`ⓎⒶⓂⒾⓈⒸⓇⒾⓅⓉ×͜×
+// @version      v0.1BETA
+// @description  A tool to help you gain XP in Duolingo
+// @author       ´꒳`ⓎⒶⓂⒾⓈⒸⓇⒾⓅⓉ×͜×
+// @match        https://*.duolingo.com/*
+// @icon         https://www.google.com/s2/favicons?sz=64&domain=duolingo.com
+// ==/UserScript==
+ 
+(function () {
+    'use strict';
+    const sessionUrl = "https://www.duolingo.com/2017-06-30/sessions";
+    let isFarming = false;
+ 
+    const getJwtToken = () => document.cookie.match(/jwt_token=([^;]+)/)?.[1] || null;
+    const decodeJwtToken = token => JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    const formatHeaders = jwtToken => ({
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${jwtToken}`,
+        "User-Agent": navigator.userAgent
+    });
+ 
+    async function getUserInfo(sub, headers) {
+        const response = await fetch(`https://www.duolingo.com/2017-06-30/users/${sub}?fields=username,fromLanguage,learningLanguage`, { headers });
+        return response.json();
+    }
+ 
+    async function farmXp(headers, sessionPayload, updateSessionPayload) {
+        while (isFarming) {
+            try {
+                const sessionRes = await fetch(sessionUrl, { method: 'POST', headers, body: JSON.stringify(sessionPayload) });
+                const session = await sessionRes.json();
+ 
+                const updateRes = await fetch(`${sessionUrl}/${session.id}`, { method: 'PUT', headers, body: JSON.stringify({ ...session, ...updateSessionPayload }) });
+                const updatedSession = await updateRes.json();
+ 
+                document.getElementById("_xpAmount").innerText = parseInt(document.getElementById("_xpAmount").innerText) + (updatedSession.xpGain || 0);
+            } catch (error) {
+                console.error("XP farming error:", error);
+                await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+        }
+    }
+ 
+    async function duoxpanel() {
+        const jwtToken = getJwtToken();
+        if (!jwtToken) return alert("Please log in to Duolingo first!");
+ 
+        const headers = formatHeaders(jwtToken);
+        const userInfo = await getUserInfo(decodeJwtToken(jwtToken).sub, headers);
+        if (!userInfo.username) return;
+ 
+        const sessionPayload = {
+            challengeTypes: ["assist", "characterIntro", "completeReverseTranslation", "definition", "translate"],
+            fromLanguage: userInfo.fromLanguage,
+            learningLanguage: userInfo.learningLanguage,
+            type: "GLOBAL_PRACTICE"
+        };
+ 
+        const updateSessionPayload = {
+            heartsLeft: 0,
+            startTime: Math.floor(Date.now() / 1000),
+            endTime: Math.floor(Date.now() / 1000) + 112,
+            failed: false,
+            maxInLessonStreak: 9,
+            shouldLearnThings: true
+        };
+ 
+        // Rainbow border animation
+        const rainbowBorder = `
+            @keyframes rainbow {
+                0% { border-color: red; }
+                14% { border-color: orange; }
+                28% { border-color: yellow; }
+                42% { border-color: green; }
+                57% { border-color: blue; }
+                71% { border-color: indigo; }
+                85% { border-color: violet; }
+                100% { border-color: red; }
+            }
+            #_container {
+                animation: rainbow 3s infinite linear;
+            }
+        `;
+        const styleSheet = document.createElement("style");
+        styleSheet.innerHTML = rainbowBorder;
+        document.head.appendChild(styleSheet);
+ 
+        // UI Panel
+        const panel = document.createElement('div');
+        panel.id = "_container";
+        panel.style = "position: fixed; bottom: 20px; right: 20px; background: white; padding: 15px; border: 2px solid #28a745; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); z-index: 10000; display: none; opacity: 0; transition: opacity 0.3s ease-in-out; text-align: center;";
+        panel.innerHTML = `
+            <div style="text-align: center; font-weight: bold; color: #28a745; margin-bottom: 10px;">DUO_FARMXP</div>
+            <p id="_loginStatus" style="margin-bottom: 10px; font-weight: bold; color: #28a375; text-align: center;">Have a good day!<br>Hi, <strong>${userInfo.username}</strong>!</p>
+            <p style="margin: 10px 0; font-weight: bold; color: #007bff;">+ <span id="_xpAmount">0</span> XP</p>
+            <button id="_toggleFarmBtn" style="width: 100%; padding: 10px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer;">START</button>
+            <p style="margin-top: 10px;"><a href="https://discord.gg/ZPYVZa4VZ3" target="_blank" style="color: #007bff; text-decoration: none;">Discord</a></p>
+            <p style="font-size: 12px; color: #888;">Version 0.1BETA</p>
+            <p style="margin-top: 10px; font-size: 12px; font-weight: bold; color: #555;">MADE BY YAMISCRIPT ^^</p>
+        `;
+        document.body.appendChild(panel);
+ 
+        // Toggle Button
+        const togglePanelBtn = document.createElement('button');
+        togglePanelBtn.innerHTML = "⚡";
+        togglePanelBtn.style = "position: fixed; top: 50%; right: 10px; transform: translateY(-50%); width: 50px; height: 50px; background: #ffc107; color: white; border: none; border-radius: 50%; cursor: pointer; font-size: 24px; font-weight: bold; text-align: center; line-height: 50px; z-index: 10001;";
+        document.body.appendChild(togglePanelBtn);
+ 
+        togglePanelBtn.addEventListener("click", () => {
+            panel.style.display = panel.style.display === "none" ? "block" : "none";
+            panel.style.opacity = panel.style.opacity === "0" ? "1" : "0";
+        });
+ 
+        document.getElementById("_toggleFarmBtn").addEventListener("click", () => {
+            isFarming = !isFarming;
+            document.getElementById("_toggleFarmBtn").innerText = isFarming ? "STOP" : "START";
+            document.getElementById("_toggleFarmBtn").style.background = isFarming ? "#c70f4f" : "#28a745";
+            if (isFarming) farmXp(headers, sessionPayload, updateSessionPayload);
+        });
+    }
+ 
+    window.addEventListener('load', duoxpanel);
+})();
