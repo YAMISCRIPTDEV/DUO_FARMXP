@@ -3,6 +3,7 @@ DUO_FARMXP – Duolingo XP Farming Easy
 DUO_FARMXP is a user script help you efficiently farm XP on Duolingo. Here’s what it offers:
 
 Key Features: ✨
+
 ✅ Automated XP Farming – Automatically completes practice sessions to earn XP without manual input. 🤖
 
 ✅ Minimalist Interface – A clean, user-friendly experience directly on the Duolingo website. 👁️
